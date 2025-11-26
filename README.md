@@ -1,17 +1,11 @@
 
 # Individual-tree isolation (treeiso) from terrestrial laser scanning
 
-### **`CloudCompare Plugin (Developed May 2023)`**
-
-A new upgrade in February 2025 boosts the processing speed by 5-15x. The plugin is now integrated into CloudCompare 2.14.alpha (Windows only).
-
-### **`Python Version (Developed January 2025)`**
-
-A new Python version accelerated by C++ has been developed.
+This repository is a fork of https://github.com/truebelief/artemis_treeiso.git. Many thanks for its authors' hard work and implementation of the tool. Main goal of this modified program is to adjust it for multiple-files processing pipeline by silencing printing information, modyfing computation parameters and simplifying the output produced by the tool.
 
 
 
-### **Authors:**
+### **Authors of the original repository:**
 
 Zhouxin Xi (zhouxin.xi@nrcan-rncan.gc.ca) and Chris Hopkinson (c.hopkinson@uleth.ca)
 
@@ -31,17 +25,6 @@ This tool relies on the cut-pursuit algorithm, please also consider citing:
 ## Folder Structure
 
 ```
-├── data                                    # Raw data
-│   └── LPine1_demo.laz                     # Example TLS data (subset due to file size limits)
-├── Matlab                                  # treeiso Matlab source code
-│   ├── treeiso.m                           # Main Matlab program
-│   ├── cutPursuit.m                        # Wrapper for L0 cut-pursuit mex code
-│   ├── jitknnsearch.m                      # JIT-accelerated knnsearch for small point sets
-│   ├── overlapping.m                       # Calculates overlap ratio between crown convex hulls
-│   ├── L0_cut_pursuit.mexw64               # Compiled L0 cut-pursuit executable
-│   ├── L0_cut_pursuit_segmentation.mexw64  # Compiled L0 cut-pursuit segmentation executable
-│   ├── las2mat.mexw64                      # Compiled LAS/LAZ file reader
-│   └── mat2las.mexw64                      # Compiled LAS/LAZ file writer
 ├── Python                                  # treeiso Python source code
 │   ├── treeiso.py                          # Main Python program
 │   ├── cut_pursuit_L0.py                   # Simplified Python version of cut-pursuit (L0 norm only)
@@ -49,113 +32,40 @@ This tool relies on the cut-pursuit algorithm, please also consider citing:
 ├── PythonCPP                               # Python source code accelerated by C++ (Recommended)
 │   ├── treeiso.py                          # Main Python program
 │   └── cut_pursuit_L0.py                   # Backup simplified cut-pursuit (L0 norm only)
-├── R                                       # R script
-│   ├── treeiso_example.R                   # An R example
-├── CloudCompare                            # CloudCompare plugin (external link)
 ├── cut_pursuit_py                          # C++ cut-pursuit Python binder (external link)
 ├── .gitmodules                             # External repository declarations
 ├── LICENSE
 └── README.md
 ```
-
-## 1. Preprocessing requirements
-
-- **Noise Removal:** Clean your TLS data to remove noise (e.g., using CloudCompare with a Sober filter, NN=10, std=1).
-- **Decimation:** Decimate the point cloud to a reasonable resolution (approximately 2 cm).
-- **Ground Points:** Remove ground points before running tree isolation.
-
-## 2. Matlab Version
-
-1. **Execution:**  
-   Run the Matlab script located at `Matlab/treeiso.m`.  
-   When prompted, enter the folder path containing your LAS/LAZ files.  
-   The script will search for all LAS/LAZ files in the specified directory and process each one.
-
-2. **Testing:**  
-   For a quick test, point the script to the data folder containing `LPine1_demo.laz`.
-
-3. **Output:**  
-   Processed LAS/LAZ files (with additional fields) will be saved in `Matlab/output/`. Each output file includes three additional fields:  
-   - `init_segs`: Initial segmentation from 3D cut-pursuit  
-   - `interim_segs`: Second-stage segmentation from 2D cut-pursuit  
-   - `segs`: Final tree segmentation
-
-4. **Performance:**  
-   Processing a ~25 MB LAS/LAZ file takes about 10 minutes on an Intel Core i7-9700K with 16 GB RAM.
-
-> **Note:**  
-> The mex files were compiled on Windows 10 (64-bit) using Visual Studio 2019. If you need to compile them yourself, please refer to the following resources:  
-> [cutpursuit](https://github.com/loicland/cut-pursuit) and [mastools](https://github.com/plitkey/matlas_tools).
-
-## 3. Python Version
-
-### Prerequisites
-
-- Python 3.6–3.12 (newer versions are untested)
-
-### 3.1 C++-Based Solution (Recommended) *(Updated March 2025)*
-
 #### Installation
 
-1. Open your terminal or command-line interface.
-2. Clone or download the repository:
+1. Code is tested for Python3.12.
+2. Clone or download the repository in choosen directory:
    ```bash
-   git clone https://github.com/artemislab/treeiso.git
-   cd treeiso/PythonCPP
+   git clone https://github.com/kalmary/artemis_treeiso_brik.git
    ```
 3. Install the dependencies:
    ```bash
    pip install -r requirements.txt
+   git submodule update --init --recursive
    ```
 
 #### Usage
 
-Run the `treeiso.py` script in the `PythonCPP` folder:
-```bash
-python treeiso.py
+Import ``from artemis_treeiso_brik.PythonCpp.treeiso_CPP import tree_isolator``. Once your point cloud is loaded and all non-vegetation segments are isolated, run: 
+```python
+tree_ids: ndarray = tree_isolator(vegetation_pcd)
 ```
-When prompted, enter the path to the directory containing your LAS/LAZ or CSV files. The resulting LAZ or CSV file will be saved in the same directory with the suffix *_treeiso.laz or *_treeiso.csv.
+Tree_ids are individual ids for each tree clustered based on predefined parameters.
 
-> **Note:**  
-> The program first checks for the presence of the C++-based `cut_pursuit_py` module. If it is not installed, it falls back to the pure Python version (`cut_pursuit_L0.py`). The C++ interface is provided via pre-built wheels for Ubuntu, macOS, and Windows, so you typically do not need a C++ compiler. The C++ version offers a speed-up of over 5× compared to the pure Python implementation, though the results may differ slightly.
+### Important notes
+- The program first checks for the presence of the C++-based `cut_pursuit_py` module. If it is not installed, it falls back to the pure Python version (`cut_pursuit_L0.py`). The C++ interface is provided via pre-built wheels for Ubuntu, macOS, and Windows, so you typically do not need a C++ compiler. The C++ version offers a speed-up of over 5× compared to the pure Python implementation, though the results may differ slightly.
+- Computations are based on predefined global parameters in `treeiso_CPP`. Results may be different depending on point cloud density, trees' size and their variety.
+- Flags `silent` and `cut_pursuit_silent` are meant to control information printing level.
+- Flag `USE_CPP` is a choice of CPP/ pure Python tool's implementation. 
+ 
 
-### 3.2 Pure Python Solution
-
-#### Installation
-
-1. Clone or download the repository:
-   ```bash
-   git clone https://github.com/artemislab/treeiso.git
-   cd treeiso/Python
-   ```
-2. Install the dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-#### Usage
-
-Run the `treeiso.py` script in the `Python` folder:
-```bash
-python treeiso.py
-```
-When prompted, enter the path to your directory containing LAS/LAZ files. The output file will be saved in the same input directory.
-
-## 4. R Version
-
-An R script suggested by Gergo Dioszegi uses the CloudCompare command-line interface to automate processing. This script remains untested.
-
-## 5. CloudCompare Plugin
-The speed comparison between the 2023 and 2025 versions and the time profiling for the 2025 version are shown in the figure below:
-
-| **Speed Comparison** | **Time Profiling** |
-|:--------------------:|:------------------:|
-| ![Speed Comparison](https://github.com/user-attachments/assets/dc808ede-bfaf-4484-85e6-8e7a94059261) | ![Time Profiling](https://github.com/user-attachments/assets/1b90b0ee-42ad-4d56-805c-0a54c81b7eb8) |
-
-The time complexity of the cut-pursuit algorithm is approximately *O(log n)* iterations multiplied by *O(m+n)* per iteration.
-
-
-## 6. Example isolated trees: 
+## Example isolated trees: 
 
 |Raw TLS Example1| After treeiso isolation| Top view|
 |:---:|:---:|:---:|
@@ -171,7 +81,7 @@ The time complexity of the cut-pursuit algorithm is approximately *O(log n)* ite
 |:---:|:---:|:---:|
 |<img width="1228" alt="NPoplar2_crop" src="https://user-images.githubusercontent.com/8785889/182318128-ddeac093-f48d-4e69-a9b2-560f5a25335e.png">|<img width="1228" alt="NPoplar2_treeiso_crop" src="https://user-images.githubusercontent.com/8785889/182318163-290e0663-4e0a-455c-85d5-5160f00a8e33.png">|<img width="1026" alt="NPoplar2_treeiso2_crop" src="https://user-images.githubusercontent.com/8785889/182318398-fc428e17-1fd7-415c-9594-e0b9e3f0c340.png">|
 
-## 7. Visual pros and cons:
+## Visual pros and cons:
 
 ![image](https://github.com/user-attachments/assets/c10659a7-b64e-4e1e-83d6-eeed9968c7e3)
 
